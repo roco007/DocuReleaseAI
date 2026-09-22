@@ -10,6 +10,8 @@ export function Setup() {
   const [step, setStep] = useState(0);
   const [testing, setTesting] = useState<string | null>(null);
   const [testResults, setTestResults] = useState<Record<string, boolean | null>>({});
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState<Credentials>({
     geminiApiKey: '',
     githubToken: '',
@@ -48,7 +50,14 @@ export function Setup() {
   };
 
   const handleComplete = async () => {
-    await saveCredentials(form);
+    setSaving(true);
+    setError(null);
+    try {
+      await saveCredentials(form);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save credentials');
+      setSaving(false);
+    }
   };
 
   const canProceed = () => {
@@ -205,6 +214,12 @@ export function Setup() {
                     <span>GitHub: {testResults.github ? 'Connected' : 'Not configured'}</span>
                   </div>
                 </div>
+                {error && (
+                  <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700 flex items-start gap-2">
+                    <AlertCircle size={16} className="flex-shrink-0 mt-0.5" />
+                    <span>{error}</span>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -232,9 +247,23 @@ export function Setup() {
             ) : (
               <button
                 onClick={handleComplete}
-                className="flex items-center gap-1 px-6 py-2 bg-accent-600 text-white rounded-lg text-sm font-medium hover:bg-accent-700 transition-all"
+                disabled={saving}
+                className={`flex items-center gap-1 px-6 py-2 rounded-lg text-sm font-medium transition-all ${
+                  saving
+                    ? 'bg-accent-400 text-white cursor-not-allowed'
+                    : 'bg-accent-600 text-white hover:bg-accent-700'
+                }`}
               >
-                Launch Dashboard <ArrowRight size={14} />
+                {saving ? (
+                  <>
+                    <Loader2 size={14} className="animate-spin" />
+                    Launching...
+                  </>
+                ) : (
+                  <>
+                    Launch Dashboard <ArrowRight size={14} />
+                  </>
+                )}
               </button>
             )}
           </div>
