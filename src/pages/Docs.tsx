@@ -1,0 +1,138 @@
+import React, { useState } from 'react';
+import { useApp } from '../context/AppContext';
+import { format } from 'date-fns';
+import { BookOpen, Check, Send, Edit3, Eye, Copy, Download, FileText } from 'lucide-react';
+import { DocEntry } from '../types';
+
+export function Docs() {
+  const { docs, updateDoc, publishDoc } = useApp();
+  const [filter, setFilter] = useState<'all' | 'draft' | 'approved' | 'published'>('all');
+  const [selected, setSelected] = useState<DocEntry | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [editContent, setEditContent] = useState('');
+
+  const filtered = filter === 'all' ? docs : docs.filter(d => d.status === filter);
+
+  const handleExport = (doc: DocEntry, fmt: 'md' | 'html') => {
+    const content = fmt === 'html' ? `<!DOCTYPE html><html><body><h1>${doc.title}</h1><pre>${doc.content}</pre></body></html>` : doc.content;
+    const blob = new Blob([content], { type: fmt === 'html' ? 'text/html' : 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${doc.title.toLowerCase().replace(/\s+/g, '-')}.${fmt === 'html' ? 'html' : 'md'}`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <div className="animate-fade-in">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-surface-900">Documentation</h1>
+        <p className="text-surface-500 mt-1">Auto-generated developer docs</p>
+      </div>
+
+      <div className="flex items-center gap-2 mb-6">
+        <div className="flex items-center gap-1 bg-surface-100 rounded-lg p-1">
+          {(['all', 'draft', 'approved', 'published'] as const).map(f => (
+            <button key={f} onClick={() => setFilter(f)}
+              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${filter === f ? 'bg-white text-surface-900 shadow-sm' : 'text-surface-500 hover:text-surface-700'}`}>
+              {f.charAt(0).toUpperCase() + f.slice(1)}
+            </button>
+          ))}
+        </div>
+        <div className="flex items-center gap-1 bg-surface-100 rounded-lg p-1">
+          {(['all', 'api', 'guide', 'reference'] as const).map(f => (
+            <button key={f} className="px-3 py-1.5 text-xs font-medium rounded-md text-surface-500 hover:text-surface-700">
+              {f.charAt(0).toUpperCase() + f.slice(1)}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-1 space-y-3">
+          {filtered.length === 0 ? (
+            <div className="bg-white rounded-xl border border-surface-200 p-8 text-center">
+              <BookOpen size={32} className="mx-auto text-surface-300 mb-2" />
+              <p className="text-sm text-surface-500">No documents yet.</p>
+            </div>
+          ) : filtered.map(doc => (
+            <button key={doc.id} onClick={() => { setSelected(doc); setEditing(false); }}
+              className={`w-full text-left bg-white rounded-xl border p-4 transition-all hover:shadow-sm ${selected?.id === doc.id ? 'border-primary-300 ring-2 ring-primary-100' : 'border-surface-200'}`}>
+              <div className="flex items-start gap-2">
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${doc.category === 'api' ? 'bg-blue-50' : doc.category === 'guide' ? 'bg-green-50' : 'bg-purple-50'}`}>
+                  <FileText size={14} className={doc.category === 'api' ? 'text-blue-600' : doc.category === 'guide' ? 'text-green-600' : 'text-purple-600'} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-surface-900 truncate">{doc.title}</p>
+                  <div className="flex items-center gap-2 mt-1.5">
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${doc.status === 'published' ? 'bg-accent-50 text-accent-700' : doc.status === 'approved' ? 'bg-amber-50 text-amber-700' : 'bg-surface-100 text-surface-600'}`}>{doc.status}</span>
+                    <span className="text-xs text-surface-400">{format(new Date(doc.updatedAt), 'MMM d')}</span>
+                  </div>
+                </div>
+              </div>
+            </button>
+          ))}
+        </div>
+
+        <div className="lg:col-span-2">
+          {selected ? (
+            <div className="bg-white rounded-xl border border-surface-200 shadow-sm">
+              <div className="p-5 border-b border-surface-100">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${selected.category === 'api' ? 'bg-blue-50 text-blue-700' : selected.category === 'guide' ? 'bg-green-50 text-green-700' : 'bg-purple-50 text-purple-700'}`}>{selected.category}</span>
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${selected.status === 'published' ? 'bg-accent-50 text-accent-700' : selected.status === 'approved' ? 'bg-amber-50 text-amber-700' : 'bg-surface-100 text-surface-600'}`}>{selected.status}</span>
+                </div>
+                <h2 className="text-lg font-bold text-surface-900">{selected.title}</h2>
+                <div className="flex flex-wrap items-center gap-2 mt-4">
+                  {selected.status === 'draft' && (
+                    <button onClick={() => updateDoc(selected.id, { status: 'approved' })} className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 text-amber-700 hover:bg-amber-100 rounded-lg text-xs font-medium"><Check size={14} /> Approve</button>
+                  )}
+                  {selected.status !== 'published' && (
+                    <button onClick={() => publishDoc(selected.id)} className="flex items-center gap-1.5 px-3 py-1.5 bg-accent-50 text-accent-700 hover:bg-accent-100 rounded-lg text-xs font-medium"><Send size={14} /> Publish</button>
+                  )}
+                  <button onClick={() => { setEditing(true); setEditContent(selected.content); }} className="flex items-center gap-1.5 px-3 py-1.5 bg-surface-100 text-surface-700 hover:bg-surface-200 rounded-lg text-xs font-medium"><Edit3 size={14} /> Edit</button>
+                  <button onClick={() => handleExport(selected, 'md')} className="flex items-center gap-1.5 px-3 py-1.5 bg-surface-100 text-surface-700 hover:bg-surface-200 rounded-lg text-xs font-medium"><Download size={14} /> Export MD</button>
+                  <button onClick={() => handleExport(selected, 'html')} className="flex items-center gap-1.5 px-3 py-1.5 bg-surface-100 text-surface-700 hover:bg-surface-200 rounded-lg text-xs font-medium"><Download size={14} /> Export HTML</button>
+                  <button onClick={() => navigator.clipboard.writeText(selected.content)} className="flex items-center gap-1.5 px-3 py-1.5 bg-surface-100 text-surface-700 hover:bg-surface-200 rounded-lg text-xs font-medium"><Copy size={14} /> Copy</button>
+                </div>
+              </div>
+              <div className="p-5">
+                {editing ? (
+                  <div>
+                    <textarea value={editContent} onChange={e => setEditContent(e.target.value)} className="w-full h-96 p-4 border border-surface-200 rounded-lg text-sm font-mono focus:ring-2 focus:ring-primary-200 outline-none resize-none" />
+                    <div className="flex gap-2 mt-3">
+                      <button onClick={() => { updateDoc(selected.id, { content: editContent }); setEditing(false); }} className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700">Save</button>
+                      <button onClick={() => setEditing(false)} className="px-4 py-2 bg-surface-100 text-surface-700 rounded-lg text-sm font-medium hover:bg-surface-200">Cancel</button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="prose prose-sm max-w-none">
+                    {selected.content.split('\n').map((line, i) => {
+                      if (line.startsWith('# ')) return <h1 key={i} className="text-xl font-bold text-surface-900 mb-3">{line.slice(2)}</h1>;
+                      if (line.startsWith('## ')) return <h2 key={i} className="text-lg font-bold text-surface-900 mt-4 mb-2">{line.slice(3)}</h2>;
+                      if (line.startsWith('### ')) return <h3 key={i} className="text-base font-semibold text-surface-800 mt-3 mb-1">{line.slice(4)}</h3>;
+                      if (line.startsWith('| ')) return <p key={i} className="text-xs font-mono text-surface-600 bg-surface-50 px-2 py-0.5">{line}</p>;
+                      if (line.startsWith('- ')) return <p key={i} className="text-sm text-surface-700 ml-4">• {line.slice(2)}</p>;
+                      if (line.startsWith('```')) return <div key={i} className="bg-surface-50 border border-surface-200 rounded px-3 py-1 my-1 text-xs font-mono text-surface-600">{line}</div>;
+                      if (line.trim() === '') return <div key={i} className="h-2" />;
+                      return <p key={i} className="text-sm text-surface-700">{line}</p>;
+                    })}
+                  </div>
+                )}
+              </div>
+              <div className="px-5 py-3 border-t border-surface-100 bg-surface-50 rounded-b-xl text-xs text-surface-400">
+                Updated {format(new Date(selected.updatedAt), 'MMM d, yyyy h:mm a')} • Model: {selected.model}
+              </div>
+            </div>
+          ) : (
+            <div className="bg-white rounded-xl border border-surface-200 p-12 text-center">
+              <Eye size={32} className="mx-auto text-surface-300 mb-2" />
+              <p className="text-sm text-surface-500">Select a document to view details</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
