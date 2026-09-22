@@ -1,57 +1,61 @@
+export interface Credentials {
+  geminiApiKey: string;
+  githubToken: string;
+  jiraDomain: string;
+  jiraEmail: string;
+  jiraApiToken: string;
+  geminiModel: 'gemini-2.5-pro' | 'gemini-2.5-flash' | 'gemini-3.8-flash';
+}
+
 export interface Organization {
   id: string;
   name: string;
-  plan: 'starter' | 'growth' | 'enterprise';
   createdAt: string;
-  members: Member[];
-}
-
-export interface Member {
-  id: string;
-  name: string;
-  email: string;
-  role: 'admin' | 'editor' | 'viewer';
-  avatar: string;
+  brandVoice: string;
+  defaultAudience: 'internal' | 'external' | 'both';
 }
 
 export interface Repository {
   id: string;
   name: string;
   fullName: string;
-  provider: 'github';
-  connected: boolean;
-  lastSync: string;
-  prCount: number;
+  defaultBranch: string;
+  private: boolean;
+  lastSyncedAt: string | null;
+  enabled: boolean;
 }
 
 export interface PullRequest {
   id: string;
   number: number;
   title: string;
+  body: string;
   author: string;
   authorAvatar: string;
-  repository: string;
+  repositoryFullName: string;
   branch: string;
-  status: 'merged' | 'open' | 'closed';
-  mergedAt: string;
+  state: 'open' | 'closed' | 'merged';
+  mergedAt: string | null;
+  createdAt: string;
   labels: string[];
-  jiraEpicId?: string;
+  jiraKeys: string[];
   diff: string;
-  commitMessage: string;
   filesChanged: number;
   additions: number;
   deletions: number;
+  processed: boolean;
 }
 
-export interface JiraEpic {
+export interface JiraIssue {
   id: string;
   key: string;
-  title: string;
+  summary: string;
   description: string;
-  status: 'done' | 'in-progress' | 'todo';
+  status: string;
   assignee: string;
-  priority: 'high' | 'medium' | 'low';
-  linkedPRs: string[];
+  priority: string;
+  issueType: string;
+  url: string;
 }
 
 export interface ChangelogEntry {
@@ -63,9 +67,11 @@ export interface ChangelogEntry {
   audience: 'internal' | 'external';
   status: 'draft' | 'approved' | 'published';
   createdAt: string;
-  publishedAt?: string;
-  prIds: string[];
+  publishedAt: string | null;
+  prNumbers: number[];
   version: string;
+  model: string;
+  tokensUsed: number;
 }
 
 export interface DocEntry {
@@ -77,31 +83,35 @@ export interface DocEntry {
   status: 'draft' | 'approved' | 'published';
   createdAt: string;
   updatedAt: string;
-  prIds: string[];
+  prNumbers: number[];
+  model: string;
 }
 
 export interface WebhookConfig {
   id: string;
-  type: 'slack' | 'custom';
+  type: 'slack' | 'discord' | 'custom';
   name: string;
   url: string;
   channel?: string;
   enabled: boolean;
   events: string[];
-  lastTriggered?: string;
+  createdAt: string;
+  lastTriggeredAt: string | null;
+  lastStatus: 'success' | 'error' | null;
 }
 
-export interface IntegrationStatus {
-  github: 'connected' | 'disconnected' | 'pending';
-  jira: 'connected' | 'disconnected' | 'pending';
-  slack: 'connected' | 'disconnected' | 'pending';
-}
-
-export interface AIGenerationResult {
-  changelog: ChangelogEntry;
-  docs: DocEntry;
-  processingTime: number;
+export interface GenerationJob {
+  id: string;
+  prId: string;
+  status: 'queued' | 'processing' | 'completed' | 'failed';
+  progress: string;
+  startedAt: string;
+  completedAt: string | null;
+  error: string | null;
+  changelogId: string | null;
+  docId: string | null;
   tokensUsed: number;
+  model: string;
 }
 
-export type Page = 'dashboard' | 'changelogs' | 'docs' | 'integrations' | 'settings' | 'webhooks' | 'new-generation';
+export type Page = 'dashboard' | 'changelogs' | 'docs' | 'generate' | 'integrations' | 'webhooks' | 'settings' | 'setup';

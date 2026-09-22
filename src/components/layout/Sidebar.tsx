@@ -1,24 +1,25 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
+import { useAuth } from '../../context/AuthContext';
 import {
   LayoutDashboard, FileText, BookOpen, Plug, Settings,
-  Webhook, Sparkles, Bell, ChevronRight, Menu, X
+  Webhook, Sparkles, Bell, ChevronRight, Menu, X, LogOut
 } from 'lucide-react';
 import { Page } from '../../types';
-import { useState } from 'react';
 
 const navItems: { page: Page; label: string; icon: React.ReactNode }[] = [
   { page: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={18} /> },
   { page: 'changelogs', label: 'Changelogs', icon: <FileText size={18} /> },
   { page: 'docs', label: 'Documentation', icon: <BookOpen size={18} /> },
-  { page: 'new-generation', label: 'Generate', icon: <Sparkles size={18} /> },
+  { page: 'generate', label: 'Generate', icon: <Sparkles size={18} /> },
   { page: 'integrations', label: 'Integrations', icon: <Plug size={18} /> },
   { page: 'webhooks', label: 'Webhooks', icon: <Webhook size={18} /> },
   { page: 'settings', label: 'Settings', icon: <Settings size={18} /> },
 ];
 
 export function Sidebar() {
-  const { currentPage, setPage, organization, notification, dismissNotification } = useApp();
+  const { currentPage, setPage, notification, dismissNotification } = useApp();
+  const { clearCredentials } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
@@ -36,25 +37,22 @@ export function Sidebar() {
         </button>
       </div>
 
-      {/* Mobile overlay */}
       {mobileOpen && (
         <div className="lg:hidden fixed inset-0 bg-black/30 z-40" onClick={() => setMobileOpen(false)} />
       )}
 
       {/* Sidebar */}
       <aside className={`fixed lg:static inset-y-0 left-0 z-50 w-64 bg-white border-r border-surface-200 flex flex-col transform transition-transform duration-200 ${mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
-        {/* Logo */}
         <div className="h-16 flex items-center px-5 border-b border-surface-100">
           <div className="w-8 h-8 bg-gradient-to-br from-primary-500 to-primary-700 rounded-lg flex items-center justify-center shadow-sm">
             <span className="text-white text-sm font-bold">D</span>
           </div>
           <div className="ml-3">
             <h1 className="font-bold text-surface-900 text-sm">DocuRelease AI</h1>
-            <p className="text-xs text-surface-400">{organization.name}</p>
+            <p className="text-xs text-surface-400">Powered by Gemini</p>
           </div>
         </div>
 
-        {/* Navigation */}
         <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto scrollbar-thin">
           {navItems.map(item => (
             <button
@@ -73,19 +71,17 @@ export function Sidebar() {
           ))}
         </nav>
 
-        {/* Plan badge */}
         <div className="p-4 border-t border-surface-100">
-          <div className="bg-gradient-to-r from-primary-50 to-accent-50 rounded-lg p-3">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-primary-700 uppercase tracking-wide">Growth Plan</span>
-              <span className="text-xs bg-primary-100 text-primary-700 px-2 py-0.5 rounded-full font-medium">Active</span>
-            </div>
-            <p className="text-xs text-surface-500 mt-1">3 of 10 repos connected</p>
-          </div>
+          <button
+            onClick={() => clearCredentials()}
+            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-surface-500 hover:text-red-600 hover:bg-red-50 transition-colors"
+          >
+            <LogOut size={14} /> Sign Out & Reset
+          </button>
         </div>
       </aside>
 
-      {/* Notification toast */}
+      {/* Notification */}
       {notification && (
         <div className={`fixed top-4 right-4 z-[100] animate-fade-in max-w-sm ${
           notification.type === 'success' ? 'bg-accent-50 border-accent-200 text-accent-800' :

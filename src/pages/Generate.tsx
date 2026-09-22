@@ -1,140 +1,154 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { Sparkles, GitPullRequest, Zap, Loader2, CheckCircle2, ArrowRight } from 'lucide-react';
+import { Sparkles, GitPullRequest, Zap, Loader2, CheckCircle2, ArrowRight, RefreshCw } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
 export function Generate() {
-  const { pullRequests, jiraEpics, isGenerating, generationProgress, generateFromPR, changelogs } = useApp();
-  const [selectedPR, setSelectedPR] = useState<string>('');
+  const { pullRequests, repositories, jiraIssues, generateDocs, syncPullRequests, generationJobs } = useApp();
+  const [selectedPR, setSelectedPR] = useState('');
+  const [syncing, setSyncing] = useState(false);
 
-  const mergedPRs = pullRequests.filter(pr => pr.status === 'merged');
-  const alreadyGenerated = new Set(changelogs.flatMap(cl => cl.prIds));
+  const mergedPRs = pullRequests.filter(pr => pr.state === 'merged');
+  const enabledRepos = repositories.filter(r => r.enabled);
+
+  const handleSync = async () => {
+    setSyncing(true);
+    for (const repo of enabledRepos) {
+      try {
+        await syncPullRequests(repo.fullName);
+      } catch { /* continue */ }
+    }
+    setSyncing(false);
+  };
 
   const handleGenerate = async () => {
     if (!selectedPR) return;
-    await generateFromPR(selectedPR);
+    await generateDocs(selectedPR);
     setSelectedPR('');
   };
+
+  const activeJobs = generationJobs.filter(j => j.status === 'processing' || j.status === 'queued');
 
   return (
     <div className="animate-fade-in max-w-4xl mx-auto">
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-surface-900">Generate Documentation</h1>
-        <p className="text-surface-500 mt-1">Select a merged PR to auto-generate changelogs and developer docs</p>
+        <p className="text-surface-500 mt-1">Select a merged PR to auto-generate changelogs and docs with Gemini AI</p>
       </div>
 
-      {/* Generation Card */}
-      <div className="bg-white rounded-xl border border-surface-200 shadow-sm p-6 mb-8">
+      {/* Active Jobs */}
+      {activeJobs.length > 0 && (
+        <div className="bg-primary-50 rounded-xl border border-primary-200 p-4 mb-6">
+          <div className="flex items-center gap-2 mb-2">
+            <Loader2 size={16} className="text-primary-600 animate-spin" />
+            <span className="text-sm font-medium text-primary-900">Processing {activeJobs.length} job(s)...</span>
+          </div>
+          {activeJobs.map(job => (
+            <div key={job.id} className="text-xs text-primary-700 ml-6">{job.progress}</div>
+          ))}
+        </div>
+      )}
+
+      {/* Sync & Generate Card */}
+      <div className="bg-white rounded-xl border border-surface-200 shadow-sm p-6 mb-6">
         <div className="flex items-center gap-3 mb-6">
           <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-purple-600 rounded-lg flex items-center justify-center">
             <Sparkles size={20} className="text-white" />
           </div>
           <div>
             <h2 className="font-semibold text-surface-900">AI-Powered Generation</h2>
-            <p className="text-xs text-surface-500">GPT-4 Turbo analyzes code diffs + Jira context</p>
+            <p className="text-xs text-surface-500">Google Gemini analyzes code diffs + Jira context</p>
           </div>
         </div>
+
+        {/* Sync Button */}
+        {enabledRepos.length > 0 && (
+          <div className="mb-4 p-3 bg-surface-50 rounded-lg border border-surface-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-surface-900">Sync Latest PRs</p>
+                <p className="text-xs text-surface-500">Fetch merged PRs from {enabledRepos.length} enabled repo(s)</p>
+              </div>
+              <button onClick={handleSync} disabled={syncing}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-surface-200 text-surface-700 hover:bg-surface-300 rounded-lg text-xs font-medium transition-colors disabled:opacity-50">
+                {syncing ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+                {syncing ? 'Syncing...' : 'Sync Now'}
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* PR Selector */}
         <div className="mb-4">
           <label className="block text-sm font-medium text-surface-700 mb-2">Select Merged PR</label>
-          <div className="space-y-2 max-h-64 overflow-y-auto scrollbar-thin">
-            {mergedPRs.map(pr => {
-              const epic = pr.jiraEpicId ? jiraEpics.find(e => e.id === pr.jiraEpicId) : null;
-              const generated = alreadyGenerated.has(pr.id);
-              return (
-                <button
-                  key={pr.id}
-                  onClick={() => setSelectedPR(pr.id)}
-                  disabled={isGenerating}
-                  className={`w-full text-left p-3 rounded-lg border transition-all ${
-                    selectedPR === pr.id
-                      ? 'border-primary-300 bg-primary-50 ring-2 ring-primary-100'
-                      : 'border-surface-200 hover:border-surface-300 hover:bg-surface-50'
-                  } ${isGenerating ? 'opacity-50 cursor-not-allowed' : ''}`}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <GitPullRequest size={14} className="text-purple-500 flex-shrink-0" />
-                        <span className="text-sm font-medium text-surface-900 truncate">{pr.title}</span>
-                        {generated && <CheckCircle2 size={14} className="text-accent-500 flex-shrink-0" />}
+          {mergedPRs.length === 0 ? (
+            <div className="p-6 text-center bg-surface-50 rounded-lg border border-surface-200">
+              <GitPullRequest size={24} className="mx-auto text-surface-300 mb-2" />
+              <p className="text-sm text-surface-500">No merged PRs found. Sync your repositories first.</p>
+            </div>
+          ) : (
+            <div className="space-y-2 max-h-64 overflow-y-auto scrollbar-thin">
+              {mergedPRs.map(pr => {
+                const linkedIssues = jiraIssues.filter(issue => pr.jiraKeys.includes(issue.key));
+                return (
+                  <button key={pr.id} onClick={() => setSelectedPR(pr.id)} disabled={activeJobs.length > 0}
+                    className={`w-full text-left p-3 rounded-lg border transition-all ${selectedPR === pr.id ? 'border-primary-300 bg-primary-50 ring-2 ring-primary-100' : 'border-surface-200 hover:border-surface-300 hover:bg-surface-50'} ${activeJobs.length > 0 ? 'opacity-50 cursor-not-allowed' : ''} ${pr.processed ? 'opacity-70' : ''}`}>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <GitPullRequest size={14} className="text-purple-500 flex-shrink-0" />
+                          <span className="text-sm font-medium text-surface-900 truncate">{pr.title}</span>
+                          {pr.processed && <CheckCircle2 size={14} className="text-accent-500 flex-shrink-0" />}
+                        </div>
+                        <div className="flex items-center gap-2 mt-1 ml-5">
+                          <span className="text-xs text-surface-400">{pr.repositoryFullName}</span>
+                          <span className="text-surface-300">•</span>
+                          <span className="text-xs text-surface-400">#{pr.number}</span>
+                          <span className="text-surface-300">•</span>
+                          <span className="text-xs text-surface-400">+{pr.additions}/-{pr.deletions}</span>
+                          {linkedIssues.length > 0 && (
+                            <>
+                              <span className="text-surface-300">•</span>
+                              <span className="text-xs text-blue-500 font-medium">{linkedIssues.map(i => i.key).join(', ')}</span>
+                            </>
+                          )}
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2 mt-1 ml-5">
-                        <span className="text-xs text-surface-400">{pr.repository}</span>
-                        <span className="text-surface-300">•</span>
-                        <span className="text-xs text-surface-400">#{pr.number}</span>
-                        <span className="text-surface-300">•</span>
-                        <span className="text-xs text-surface-400">+{pr.additions}/-{pr.deletions}</span>
-                        {epic && (
-                          <>
-                            <span className="text-surface-300">•</span>
-                            <span className="text-xs text-blue-500 font-medium">{epic.key}</span>
-                          </>
-                        )}
-                      </div>
+                      <span className="text-xs text-surface-400 flex-shrink-0">
+                        {formatDistanceToNow(new Date(pr.mergedAt || pr.createdAt), { addSuffix: true })}
+                      </span>
                     </div>
-                    <span className="text-xs text-surface-400 flex-shrink-0">
-                      {formatDistanceToNow(new Date(pr.mergedAt), { addSuffix: true })}
-                    </span>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* Generate Button */}
-        <button
-          onClick={handleGenerate}
-          disabled={!selectedPR || isGenerating}
-          className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg text-sm font-semibold transition-all ${
-            !selectedPR || isGenerating
-              ? 'bg-surface-100 text-surface-400 cursor-not-allowed'
-              : 'bg-gradient-to-r from-primary-600 to-purple-600 text-white hover:from-primary-700 hover:to-purple-700 shadow-md hover:shadow-lg'
-          }`}
-        >
-          {isGenerating ? (
-            <>
-              <Loader2 size={16} className="animate-spin" />
-              {generationProgress}
-            </>
+        <button onClick={handleGenerate} disabled={!selectedPR || activeJobs.length > 0}
+          className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg text-sm font-semibold transition-all ${!selectedPR || activeJobs.length > 0 ? 'bg-surface-100 text-surface-400 cursor-not-allowed' : 'bg-gradient-to-r from-primary-600 to-purple-600 text-white hover:from-primary-700 hover:to-purple-700 shadow-md hover:shadow-lg'}`}>
+          {activeJobs.length > 0 ? (
+            <><Loader2 size={16} className="animate-spin" /> Processing...</>
           ) : (
-            <>
-              <Sparkles size={16} />
-              Generate Changelog & Docs
-              <ArrowRight size={16} />
-            </>
+            <><Sparkles size={16} /> Generate with Gemini <ArrowRight size={16} /></>
           )}
         </button>
-
-        {/* Processing indicator */}
-        {isGenerating && (
-          <div className="mt-4 p-3 bg-primary-50 rounded-lg border border-primary-100">
-            <div className="flex items-center gap-2">
-              <Zap size={14} className="text-primary-600 animate-pulse-soft" />
-              <span className="text-xs text-primary-700 font-medium">{generationProgress}</span>
-            </div>
-            <div className="mt-2 h-1.5 bg-primary-100 rounded-full overflow-hidden">
-              <div className="h-full bg-primary-500 rounded-full animate-pulse-soft" style={{ width: '60%' }} />
-            </div>
-          </div>
-        )}
       </div>
 
-      {/* Workflow Steps */}
+      {/* Workflow */}
       <div className="bg-white rounded-xl border border-surface-200 shadow-sm p-6">
-        <h3 className="font-semibold text-surface-900 mb-4">How It Works</h3>
-        <div className="space-y-4">
+        <h3 className="font-semibold text-surface-900 mb-4">Generation Pipeline</h3>
+        <div className="space-y-3">
           {[
-            { step: 1, title: 'Webhook Trigger', desc: 'PR merge event detected via GitHub App webhook', icon: '🔗' },
-            { step: 2, title: 'Context Fetching', desc: 'Diff, commit history, and linked Jira epic retrieved', icon: '📥' },
-            { step: 3, title: 'AI Analysis', desc: 'GPT-4 Turbo processes code changes with repository context', icon: '🧠' },
-            { step: 4, title: 'Dual Output', desc: 'Customer changelog + internal developer docs generated', icon: '📝' },
-            { step: 5, title: 'Slack Review', desc: 'Draft sent to Slack channel for team approval', icon: '💬' },
-            { step: 6, title: 'Publish', desc: 'Approved content pushed to changelog page and wiki', icon: '🚀' },
-          ].map(item => (
-            <div key={item.step} className="flex items-start gap-3">
+            { icon: '🔗', title: 'Fetch PR Data', desc: 'Code diff, commit messages, labels from GitHub' },
+            { icon: '📋', title: 'Link Jira Context', desc: 'Extract issue keys and fetch descriptions' },
+            { icon: '🧠', title: 'Gemini AI Analysis', desc: 'GPT-4-class model processes all context' },
+            { icon: '📝', title: 'Dual Output', desc: 'Customer changelog + developer documentation' },
+            { icon: '💬', title: 'Slack Notification', desc: 'Draft sent for team review and approval' },
+            { icon: '🚀', title: 'Publish', desc: 'Export to Markdown/HTML when approved' },
+          ].map((item, i) => (
+            <div key={i} className="flex items-start gap-3">
               <div className="w-8 h-8 bg-surface-100 rounded-lg flex items-center justify-center flex-shrink-0">
                 <span className="text-sm">{item.icon}</span>
               </div>
