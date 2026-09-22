@@ -1,4 +1,5 @@
 export interface Credentials {
+  id: string;
   geminiApiKey: string;
   githubToken: string;
   geminiModel: 'gemini-2.5-pro' | 'gemini-2.5-flash' | 'gemini-3.8-flash';

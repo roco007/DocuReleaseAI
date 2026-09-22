@@ -13,6 +13,7 @@ export function Setup() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState<Credentials>({
+    id: 'primary',
     geminiApiKey: '',
     githubToken: '',
     geminiModel: 'gemini-2.5-pro',

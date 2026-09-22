@@ -46,11 +46,11 @@ let dbInstance: IDBPDatabase<DocuReleaseDB> | null = null;
 export async function getDB(): Promise<IDBPDatabase<DocuReleaseDB>> {
   if (dbInstance) return dbInstance;
 
-  dbInstance = await openDB<DocuReleaseDB>('docurelease-db', 2, {
+  dbInstance = await openDB<DocuReleaseDB>('docurelease-db', 3, {
     upgrade(db, oldVersion) {
       if (oldVersion < 1) {
         // Credentials store
-        db.createObjectStore('credentials');
+        db.createObjectStore('credentials', { keyPath: 'id' });
 
         // Organization store
         db.createObjectStore('organization', { keyPath: 'id' });
@@ -94,6 +94,18 @@ export async function getDB(): Promise<IDBPDatabase<DocuReleaseDB>> {
           // ignore
         }
       }
+
+      // v3: Recreate credentials store with keyPath
+      if (oldVersion >= 1 && oldVersion < 3) {
+        try {
+          if (db.objectStoreNames.contains('credentials')) {
+            db.deleteObjectStore('credentials');
+          }
+          db.createObjectStore('credentials', { keyPath: 'id' });
+        } catch {
+          // ignore
+        }
+      }
     },
   });
 
@@ -109,7 +121,7 @@ export async function getCredentials(): Promise<Credentials | null> {
 
 export async function saveCredentials(creds: Credentials): Promise<void> {
   const db = await getDB();
-  await db.put('credentials', creds, 'primary');
+  await db.put('credentials', { ...creds, id: 'primary' });
 }
 
 export async function clearCredentials(): Promise<void> {
