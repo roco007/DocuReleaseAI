@@ -3,8 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { Credentials } from '../types';
 import { GeminiService } from '../services/gemini';
 import { GitHubService } from '../services/github';
-import { JiraService } from '../services/jira';
-import { Key, GitBranch, CheckCircle2, AlertCircle, Loader2, ArrowRight, ArrowLeft, Shield } from 'lucide-react';
+import { Key, CheckCircle2, AlertCircle, Loader2, ArrowRight, ArrowLeft } from 'lucide-react';
 
 export function Setup() {
   const { saveCredentials } = useAuth();
@@ -14,9 +13,6 @@ export function Setup() {
   const [form, setForm] = useState<Credentials>({
     geminiApiKey: '',
     githubToken: '',
-    jiraDomain: '',
-    jiraEmail: '',
-    jiraApiToken: '',
     geminiModel: 'gemini-2.5-pro',
   });
 
@@ -24,7 +20,6 @@ export function Setup() {
     { title: 'Welcome', description: 'Set up DocuRelease AI' },
     { title: 'Google Gemini', description: 'AI model configuration' },
     { title: 'GitHub', description: 'Repository access' },
-    { title: 'Jira', description: 'Issue tracking (optional)' },
     { title: 'Complete', description: 'Ready to go!' },
   ];
 
@@ -52,18 +47,6 @@ export function Setup() {
     setTesting(null);
   };
 
-  const testJira = async () => {
-    setTesting('jira');
-    try {
-      const service = new JiraService(form.jiraDomain, form.jiraEmail, form.jiraApiToken);
-      const user = await service.testConnection();
-      setTestResults(prev => ({ ...prev, jira: !!user.displayName }));
-    } catch {
-      setTestResults(prev => ({ ...prev, jira: false }));
-    }
-    setTesting(null);
-  };
-
   const handleComplete = async () => {
     await saveCredentials(form);
   };
@@ -71,7 +54,6 @@ export function Setup() {
   const canProceed = () => {
     if (step === 1) return testResults.gemini === true;
     if (step === 2) return testResults.github === true;
-    if (step === 3) return true; // Jira is optional
     return true;
   };
 
@@ -118,14 +100,14 @@ export function Setup() {
                 <div className="bg-primary-50 rounded-lg p-4 border border-primary-100">
                   <h3 className="font-semibold text-primary-900 mb-2">Welcome to DocuRelease AI</h3>
                   <p className="text-sm text-primary-700">
-                    Automatically generate changelogs and developer documentation from your GitHub PRs and Jira issues using Google Gemini AI.
+                    Automatically generate changelogs and developer documentation from your GitHub PRs using Google Gemini AI.
                   </p>
                 </div>
                 <div className="space-y-3">
                   <Feature icon="🧠" title="Google Gemini 2.5 Pro" desc="State-of-the-art AI for code analysis" />
                   <Feature icon="🔗" title="GitHub Integration" desc="Track PRs and extract code diffs" />
-                  <Feature icon="📋" title="Jira Context" desc="Enrich docs with issue descriptions" />
                   <Feature icon="💬" title="Slack Workflows" desc="Review and approve in your channels" />
+                  <Feature icon="📝" title="Dual Output" desc="Customer changelogs + developer docs" />
                 </div>
                 <div className="bg-amber-50 rounded-lg p-3 border border-amber-200">
                   <p className="text-xs text-amber-800">
@@ -203,60 +185,8 @@ export function Setup() {
               </div>
             )}
 
-            {/* Step 3: Jira */}
+            {/* Step 3: Complete */}
             {step === 3 && (
-              <div className="space-y-4">
-                <div className="bg-surface-50 rounded-lg p-3 border border-surface-200">
-                  <p className="text-xs text-surface-600">
-                    Jira integration is optional. You can configure it later from Settings.
-                  </p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-surface-700 mb-1">Jira Domain</label>
-                  <input
-                    type="text"
-                    value={form.jiraDomain}
-                    onChange={e => setForm(prev => ({ ...prev, jiraDomain: e.target.value }))}
-                    placeholder="your-company"
-                    className="w-full px-3 py-2.5 border border-surface-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-200 focus:border-primary-300 outline-none"
-                  />
-                  <p className="text-xs text-surface-400 mt-1">The subdomain from your Jira URL (e.g., your-company.atlassian.net)</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-surface-700 mb-1">Jira Email</label>
-                  <input
-                    type="email"
-                    value={form.jiraEmail}
-                    onChange={e => setForm(prev => ({ ...prev, jiraEmail: e.target.value }))}
-                    placeholder="you@company.com"
-                    className="w-full px-3 py-2.5 border border-surface-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-200 focus:border-primary-300 outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-surface-700 mb-1">Jira API Token</label>
-                  <input
-                    type="password"
-                    value={form.jiraApiToken}
-                    onChange={e => setForm(prev => ({ ...prev, jiraApiToken: e.target.value }))}
-                    placeholder="API token"
-                    className="w-full px-3 py-2.5 border border-surface-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-200 focus:border-primary-300 outline-none font-mono"
-                  />
-                  <p className="text-xs text-surface-400 mt-1">
-                    Create at <a href="https://id.atlassian.com/manage-profile/security/api-tokens" target="_blank" rel="noopener" className="text-primary-600 hover:underline">Atlassian API Tokens</a>
-                  </p>
-                </div>
-                <TestButton
-                  label="Test Jira Connection"
-                  testing={testing === 'jira'}
-                  result={testResults.jira}
-                  onClick={testJira}
-                  disabled={!form.jiraDomain || !form.jiraEmail || !form.jiraApiToken}
-                />
-              </div>
-            )}
-
-            {/* Step 4: Complete */}
-            {step === 4 && (
               <div className="text-center py-6">
                 <div className="w-16 h-16 bg-accent-100 rounded-full flex items-center justify-center mx-auto mb-4">
                   <CheckCircle2 size={32} className="text-accent-600" />
@@ -274,10 +204,6 @@ export function Setup() {
                     <span className={`w-2 h-2 rounded-full ${testResults.github ? 'bg-accent-500' : 'bg-surface-300'}`} />
                     <span>GitHub: {testResults.github ? 'Connected' : 'Not configured'}</span>
                   </div>
-                  <div className="flex items-center gap-2 text-sm">
-                    <span className={`w-2 h-2 rounded-full ${testResults.jira === true ? 'bg-accent-500' : 'bg-surface-300'}`} />
-                    <span>Jira: {testResults.jira === true ? 'Connected' : 'Skipped'}</span>
-                  </div>
                 </div>
               </div>
             )}
@@ -291,7 +217,7 @@ export function Setup() {
               </button>
             ) : <div />}
 
-            {step < 4 ? (
+            {step < 3 ? (
               <button
                 onClick={() => setStep(step + 1)}
                 disabled={!canProceed()}

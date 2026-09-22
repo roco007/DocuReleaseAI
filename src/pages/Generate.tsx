@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { Sparkles, GitPullRequest, Zap, Loader2, CheckCircle2, ArrowRight, RefreshCw } from 'lucide-react';
+import { Sparkles, GitPullRequest, Loader2, CheckCircle2, ArrowRight, RefreshCw } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
 export function Generate() {
-  const { pullRequests, repositories, jiraIssues, generateDocs, syncPullRequests, generationJobs } = useApp();
+  const { pullRequests, repositories, generateDocs, syncPullRequests, generationJobs } = useApp();
   const [selectedPR, setSelectedPR] = useState('');
   const [syncing, setSyncing] = useState(false);
 
@@ -57,7 +57,7 @@ export function Generate() {
           </div>
           <div>
             <h2 className="font-semibold text-surface-900">AI-Powered Generation</h2>
-            <p className="text-xs text-surface-500">Google Gemini analyzes code diffs + Jira context</p>
+            <p className="text-xs text-surface-500">Google Gemini analyzes code diffs from your PRs</p>
           </div>
         </div>
 
@@ -88,39 +88,32 @@ export function Generate() {
             </div>
           ) : (
             <div className="space-y-2 max-h-64 overflow-y-auto scrollbar-thin">
-              {mergedPRs.map(pr => {
-                const linkedIssues = jiraIssues.filter(issue => pr.jiraKeys.includes(issue.key));
-                return (
-                  <button key={pr.id} onClick={() => setSelectedPR(pr.id)} disabled={activeJobs.length > 0}
-                    className={`w-full text-left p-3 rounded-lg border transition-all ${selectedPR === pr.id ? 'border-primary-300 bg-primary-50 ring-2 ring-primary-100' : 'border-surface-200 hover:border-surface-300 hover:bg-surface-50'} ${activeJobs.length > 0 ? 'opacity-50 cursor-not-allowed' : ''} ${pr.processed ? 'opacity-70' : ''}`}>
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <GitPullRequest size={14} className="text-purple-500 flex-shrink-0" />
-                          <span className="text-sm font-medium text-surface-900 truncate">{pr.title}</span>
-                          {pr.processed && <CheckCircle2 size={14} className="text-accent-500 flex-shrink-0" />}
-                        </div>
-                        <div className="flex items-center gap-2 mt-1 ml-5">
-                          <span className="text-xs text-surface-400">{pr.repositoryFullName}</span>
-                          <span className="text-surface-300">•</span>
-                          <span className="text-xs text-surface-400">#{pr.number}</span>
-                          <span className="text-surface-300">•</span>
-                          <span className="text-xs text-surface-400">+{pr.additions}/-{pr.deletions}</span>
-                          {linkedIssues.length > 0 && (
-                            <>
-                              <span className="text-surface-300">•</span>
-                              <span className="text-xs text-blue-500 font-medium">{linkedIssues.map(i => i.key).join(', ')}</span>
-                            </>
-                          )}
-                        </div>
+              {mergedPRs.map(pr => (
+                <button key={pr.id} onClick={() => setSelectedPR(pr.id)} disabled={activeJobs.length > 0}
+                  className={`w-full text-left p-3 rounded-lg border transition-all ${selectedPR === pr.id ? 'border-primary-300 bg-primary-50 ring-2 ring-primary-100' : 'border-surface-200 hover:border-surface-300 hover:bg-surface-50'} ${activeJobs.length > 0 ? 'opacity-50 cursor-not-allowed' : ''} ${pr.processed ? 'opacity-70' : ''}`}>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <GitPullRequest size={14} className="text-purple-500 flex-shrink-0" />
+                        <span className="text-sm font-medium text-surface-900 truncate">{pr.title}</span>
+                        {pr.processed && <CheckCircle2 size={14} className="text-accent-500 flex-shrink-0" />}
                       </div>
-                      <span className="text-xs text-surface-400 flex-shrink-0">
-                        {formatDistanceToNow(new Date(pr.mergedAt || pr.createdAt), { addSuffix: true })}
-                      </span>
+                      <div className="flex items-center gap-2 mt-1 ml-5">
+                        <span className="text-xs text-surface-400">{pr.repositoryFullName}</span>
+                        <span className="text-surface-300">•</span>
+                        <span className="text-xs text-surface-400">#{pr.number}</span>
+                        <span className="text-surface-300">•</span>
+                        <span className="text-xs text-surface-400">+{pr.additions}/-{pr.deletions}</span>
+                        <span className="text-surface-300">•</span>
+                        <span className="text-xs text-surface-400">{pr.filesChanged} files</span>
+                      </div>
                     </div>
-                  </button>
-                );
-              })}
+                    <span className="text-xs text-surface-400 flex-shrink-0">
+                      {formatDistanceToNow(new Date(pr.mergedAt || pr.createdAt), { addSuffix: true })}
+                    </span>
+                  </div>
+                </button>
+              ))}
             </div>
           )}
         </div>
@@ -142,8 +135,7 @@ export function Generate() {
         <div className="space-y-3">
           {[
             { icon: '🔗', title: 'Fetch PR Data', desc: 'Code diff, commit messages, labels from GitHub' },
-            { icon: '📋', title: 'Link Jira Context', desc: 'Extract issue keys and fetch descriptions' },
-            { icon: '🧠', title: 'Gemini AI Analysis', desc: 'GPT-4-class model processes all context' },
+            { icon: '🧠', title: 'Gemini AI Analysis', desc: 'Model processes code changes and context' },
             { icon: '📝', title: 'Dual Output', desc: 'Customer changelog + developer documentation' },
             { icon: '💬', title: 'Slack Notification', desc: 'Draft sent for team review and approval' },
             { icon: '🚀', title: 'Publish', desc: 'Export to Markdown/HTML when approved' },

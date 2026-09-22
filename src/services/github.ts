@@ -85,8 +85,6 @@ export class GitHubService {
         const diff = await this.getPRDiff(repoFullName, pr.number);
         const files = await this.getPRFiles(repoFullName, pr.number);
 
-        const jiraKeys = this.extractJiraKeys(pr.title + ' ' + (pr.body || ''));
-
         results.push({
           id: `pr-${repoFullName}-${pr.number}`,
           number: pr.number,
@@ -100,7 +98,6 @@ export class GitHubService {
           mergedAt: pr.merged_at || pr.pull_request?.merged_at || new Date().toISOString(),
           createdAt: pr.created_at,
           labels: pr.labels.map(l => l.name),
-          jiraKeys,
           diff: diff.substring(0, 15000), // Truncate large diffs
           filesChanged: files.length,
           additions: files.reduce((sum, f) => sum + f.additions, 0),
@@ -133,9 +130,4 @@ export class GitHubService {
     return this.request(`/repos/${repoFullName}/pulls/${prNumber}/files?per_page=100`);
   }
 
-  private extractJiraKeys(text: string): string[] {
-    const regex = /[A-Z][A-Z0-9]+-\d+/g;
-    const matches = text.match(regex);
-    return matches ? [...new Set(matches)] : [];
-  }
 }

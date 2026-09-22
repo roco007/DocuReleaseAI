@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
-import { Settings as SettingsIcon, Users, CreditCard, Shield, Save, Check } from 'lucide-react';
+import { Settings as SettingsIcon, CreditCard, Shield, Save, Check } from 'lucide-react';
 import { Organization } from '../types';
 
 export function Settings() {
@@ -135,15 +135,6 @@ export function Settings() {
                   {credentials?.githubToken ? 'Active' : 'Not set'}
                 </span>
               </div>
-              <div className="flex items-center justify-between p-3 bg-surface-50 rounded-lg border border-surface-200">
-                <div>
-                  <p className="text-sm font-medium text-surface-900">Jira API Token</p>
-                  <p className="text-xs text-surface-400 font-mono mt-0.5">{credentials?.jiraApiToken ? '••••••••••••' : 'Not set'}</p>
-                </div>
-                <span className={`text-xs px-2 py-0.5 rounded-full ${credentials?.jiraApiToken ? 'text-accent-600 bg-accent-50' : 'text-surface-500 bg-surface-100'}`}>
-                  {credentials?.jiraApiToken ? 'Active' : 'Optional'}
-                </span>
-              </div>
             </div>
             <p className="text-xs text-surface-400 mt-4">
               All keys are stored locally in your browser's IndexedDB. They are only sent directly to the respective service APIs.
@@ -162,9 +153,7 @@ export function Settings() {
             <div className="grid grid-cols-3 gap-4 mt-4 pt-4 border-t border-primary-100">
               <div>
                 <p className="text-xs text-surface-500">Total Tokens Used</p>
-                <p className="text-sm font-semibold text-surface-900">
-                  {organization ? '0' : '0'}
-                </p>
+                <p className="text-sm font-semibold text-surface-900">0</p>
               </div>
               <div>
                 <p className="text-xs text-surface-500">Generations</p>

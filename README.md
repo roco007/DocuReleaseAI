@@ -1,16 +1,15 @@
 # DocuRelease AI
 
-> Automated technical documentation and changelog generation synced with GitHub PRs and Jira epics, powered by Google Gemini AI.
+> Automated technical documentation and changelog generation synced with GitHub PRs, powered by Google Gemini AI.
 
 ## Overview
 
-DocuRelease AI automatically hooks into your version control, analyzes code changes and discussions using Google Gemini 2.5 Pro, and generates pristine documentation and release notes in seconds.
+DocuRelease AI automatically hooks into your GitHub repositories, analyzes code changes using Google Gemini 2.5 Pro, and generates pristine documentation and release notes in seconds.
 
 ### Key Features
 
 - **Google Gemini 2.5 Pro/Flash** - State-of-the-art AI for code analysis and documentation generation
 - **GitHub Integration** - Real-time PR tracking with diff extraction via GitHub REST API
-- **Jira Cloud Integration** - Automatic issue context enrichment via Jira REST API
 - **Slack/Discord Webhooks** - Approval workflows with interactive Block Kit messages
 - **Dual Output** - Customer changelogs AND internal developer docs from a single PR
 - **Markdown & HTML Export** - Flexible output formats with one-click download
@@ -23,7 +22,6 @@ DocuRelease AI automatically hooks into your version control, analyzes code chan
 Frontend:    React + Vite + Tailwind CSS (SPA)
 AI Engine:   Google Gemini API (gemini-2.5-pro, gemini-2.5-flash, gemini-3.8-flash)
 Source:      GitHub REST API v3 (PRs, diffs, commits)
-Issues:      Jira Cloud REST API v3 (epics, issues)
 Notify:      Slack/Discord Incoming Webhooks (Block Kit)
 Storage:     IndexedDB via idb library (client-side persistence)
 Auth:        API keys stored in IndexedDB (never leaves browser)
@@ -31,11 +29,10 @@ Auth:        API keys stored in IndexedDB (never leaves browser)
 
 ### Data Model
 
-- **Credentials** - API keys for Gemini, GitHub, Jira (stored in IndexedDB)
+- **Credentials** - API keys for Gemini, GitHub (stored in IndexedDB)
 - **Organization** - Company settings, brand voice, default audience
 - **Repository** - GitHub repos with sync status
-- **PullRequest** - Merged PRs with full diffs, labels, Jira links
-- **JiraIssue** - Linked issues with descriptions
+- **PullRequest** - Merged PRs with full diffs and labels
 - **ChangelogEntry** - Generated customer-facing release notes
 - **DocEntry** - Generated internal developer documentation
 - **WebhookConfig** - Slack/Discord/custom webhook configurations
@@ -49,7 +46,6 @@ Auth:        API keys stored in IndexedDB (never leaves browser)
 - npm 9+
 - A Google AI Studio API key ([get one free](https://aistudio.google.com/apikey))
 - A GitHub Personal Access Token ([create one](https://github.com/settings/tokens) with `repo` scope)
-- (Optional) Jira Cloud API token ([create one](https://id.atlassian.com/manage-profile/security/api-tokens))
 
 ### Installation
 
@@ -72,10 +68,9 @@ npm run typecheck
 1. Open the app in your browser
 2. Enter your Google Gemini API key (required)
 3. Enter your GitHub Personal Access Token (required)
-4. (Optional) Configure Jira Cloud credentials
-5. Click "Launch Dashboard"
-6. Go to Integrations → Sync Repositories
-7. Go to Generate → Select a PR → Generate
+4. Click "Launch Dashboard"
+5. Go to Integrations → Sync Repositories
+6. Go to Generate → Select a PR → Generate
 
 ## API Integrations
 
@@ -104,14 +99,6 @@ Direct calls to `https://api.github.com` with Bearer token auth.
 - `GET /repos/{owner}/{repo}/pulls/{number}` - Get PR diff
 - `GET /repos/{owner}/{repo}/pulls/{number}/files` - Get file stats
 
-### Jira Cloud REST API
-
-Direct calls to `https://{domain}.atlassian.net/rest/api/3` with Basic auth.
-
-**Endpoints Used:**
-- `GET /myself` - Verify credentials
-- `GET /search?jql=...` - Search issues by JQL
-
 ### Slack Incoming Webhooks
 
 POST requests to webhook URLs with Block Kit message format.
@@ -125,7 +112,7 @@ POST requests to webhook URLs with Block Kit message format.
 
 - **All API keys stored in IndexedDB** - Never sent to any server except the target API
 - **No backend required** - Pure client-side application
-- **Direct API calls** - Your keys go directly to Google/GitHub/Jira
+- **Direct API calls** - Your keys go directly to Google/GitHub
 - **No telemetry** - No analytics or tracking
 - **CORS-safe** - All APIs support browser-based requests
 
@@ -144,7 +131,6 @@ src/
 ├── services/
 │   ├── gemini.ts              # Google Gemini AI service
 │   ├── github.ts              # GitHub REST API service
-│   ├── jira.ts                # Jira Cloud REST API service
 │   └── slack.ts               # Slack webhook service
 ├── context/
 │   ├── AuthContext.tsx         # API key management

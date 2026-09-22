@@ -2,11 +2,11 @@ import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
 import { GitHubService } from '../services/github';
-import { Check, X, Loader2, RefreshCw, ToggleLeft, ToggleRight } from 'lucide-react';
+import { Loader2, RefreshCw, ToggleLeft, ToggleRight } from 'lucide-react';
 
 export function Integrations() {
   const { credentials } = useAuth();
-  const { repositories, syncRepositories, toggleRepository, loadData } = useApp();
+  const { repositories, syncRepositories, toggleRepository } = useApp();
   const [syncing, setSyncing] = useState(false);
   const [githubUser, setGithubUser] = useState<string | null>(null);
   const [testing, setTesting] = useState(false);
@@ -107,30 +107,6 @@ export function Integrations() {
                     ))}
                   </div>
                 </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Jira */}
-        <div className="bg-white rounded-xl border border-surface-200 shadow-sm p-6">
-          <div className="flex items-start gap-4">
-            <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center flex-shrink-0">
-              <svg width="24" height="24" viewBox="0 0 24 24" className="text-blue-600">
-                <path fill="currentColor" d="M11.53 2c0 2.4 1.97 4.35 4.35 4.35h1.78v1.7c0 2.4 1.94 4.34 4.34 4.35V2.84c0-.46-.18-.9-.5-1.22L19.77.5c-.32-.32-.76-.5-1.22-.5h-7.02c0 2.4 1.97 4.35 4.35 4.35H17v1.7h-1.12c-2.4 0-4.35-1.94-4.35-4.35zM2 12.3c0 2.4 1.97 4.35 4.35 4.35h1.78v1.7c0 2.4 1.94 4.34 4.34 4.35v-9.56c0-.46-.18-.9-.5-1.22l-1.13-1.12c-.32-.32-.76-.5-1.22-.5H2.84c0 2.4 1.97 4.35 4.35 4.35H8.3v1.7H7.18c-2.4 0-4.35-1.94-4.35-4.35z"/>
-              </svg>
-            </div>
-            <div className="flex-1">
-              <div className="flex items-center gap-2">
-                <h3 className="font-semibold text-surface-900">Jira Cloud</h3>
-                <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${credentials?.jiraApiToken ? 'bg-accent-50 text-accent-700' : 'bg-surface-100 text-surface-500'}`}>
-                  <div className={`w-1.5 h-1.5 rounded-full ${credentials?.jiraApiToken ? 'bg-accent-500' : 'bg-surface-400'}`} />
-                  {credentials?.jiraApiToken ? 'Connected' : 'Not configured'}
-                </span>
-              </div>
-              <p className="text-sm text-surface-500 mt-1">Link PRs to Jira issues for context-rich documentation.</p>
-              {credentials?.jiraDomain && (
-                <p className="text-xs text-surface-400 mt-1">Domain: {credentials.jiraDomain}.atlassian.net</p>
               )}
             </div>
           </div>

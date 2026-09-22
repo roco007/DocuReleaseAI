@@ -1,5 +1,5 @@
 import { openDB, DBSchema, IDBPDatabase } from 'idb';
-import { Credentials, Organization, Repository, PullRequest, JiraIssue, ChangelogEntry, DocEntry, WebhookConfig, GenerationJob } from '../types';
+import { Credentials, Organization, Repository, PullRequest, ChangelogEntry, DocEntry, WebhookConfig, GenerationJob } from '../types';
 
 interface DocuReleaseDB extends DBSchema {
   credentials: {
@@ -19,11 +19,6 @@ interface DocuReleaseDB extends DBSchema {
     key: string;
     value: PullRequest;
     indexes: { 'by-repo': string; 'by-state': string; 'by-mergedAt': string };
-  };
-  jiraIssues: {
-    key: string;
-    value: JiraIssue;
-    indexes: { 'by-key': string };
   };
   changelogs: {
     key: string;
@@ -51,51 +46,54 @@ let dbInstance: IDBPDatabase<DocuReleaseDB> | null = null;
 export async function getDB(): Promise<IDBPDatabase<DocuReleaseDB>> {
   if (dbInstance) return dbInstance;
 
-  dbInstance = await openDB<DocuReleaseDB>('docurelease-db', 1, {
-    upgrade(db) {
-      // Credentials store
-      if (!db.objectStoreNames.contains('credentials')) {
-        db.createObjectStore('credentials', { keyPath: 'geminiApiKey' });
-      }
+  dbInstance = await openDB<DocuReleaseDB>('docurelease-db', 2, {
+    upgrade(db, oldVersion) {
+      if (oldVersion < 1) {
+        // Credentials store
+        db.createObjectStore('credentials');
 
-      // Organization store
-      if (!db.objectStoreNames.contains('organization')) {
+        // Organization store
         db.createObjectStore('organization', { keyPath: 'id' });
-      }
 
-      // Repositories
-      const repoStore = db.createObjectStore('repositories', { keyPath: 'id' });
-      repoStore.createIndex('by-fullName', 'fullName');
+        // Repositories
+        const repoStore = db.createObjectStore('repositories', { keyPath: 'id' });
+        repoStore.createIndex('by-fullName', 'fullName');
 
-      // Pull Requests
-      const prStore = db.createObjectStore('pullRequests', { keyPath: 'id' });
-      prStore.createIndex('by-repo', 'repositoryFullName');
-      prStore.createIndex('by-state', 'state');
-      prStore.createIndex('by-mergedAt', 'mergedAt');
+        // Pull Requests
+        const prStore = db.createObjectStore('pullRequests', { keyPath: 'id' });
+        prStore.createIndex('by-repo', 'repositoryFullName');
+        prStore.createIndex('by-state', 'state');
+        prStore.createIndex('by-mergedAt', 'mergedAt');
 
-      // Jira Issues
-      const jiraStore = db.createObjectStore('jiraIssues', { keyPath: 'id' });
-      jiraStore.createIndex('by-key', 'key');
+        // Changelogs
+        const clStore = db.createObjectStore('changelogs', { keyPath: 'id' });
+        clStore.createIndex('by-status', 'status');
+        clStore.createIndex('by-createdAt', 'createdAt');
 
-      // Changelogs
-      const clStore = db.createObjectStore('changelogs', { keyPath: 'id' });
-      clStore.createIndex('by-status', 'status');
-      clStore.createIndex('by-createdAt', 'createdAt');
+        // Docs
+        const docStore = db.createObjectStore('docs', { keyPath: 'id' });
+        docStore.createIndex('by-status', 'status');
+        docStore.createIndex('by-category', 'category');
 
-      // Docs
-      const docStore = db.createObjectStore('docs', { keyPath: 'id' });
-      docStore.createIndex('by-status', 'status');
-      docStore.createIndex('by-category', 'category');
-
-      // Webhooks
-      if (!db.objectStoreNames.contains('webhooks')) {
+        // Webhooks
         db.createObjectStore('webhooks', { keyPath: 'id' });
+
+        // Generation Jobs
+        const jobStore = db.createObjectStore('generationJobs', { keyPath: 'id' });
+        jobStore.createIndex('by-status', 'status');
+        jobStore.createIndex('by-startedAt', 'startedAt');
       }
 
-      // Generation Jobs
-      const jobStore = db.createObjectStore('generationJobs', { keyPath: 'id' });
-      jobStore.createIndex('by-status', 'status');
-      jobStore.createIndex('by-startedAt', 'startedAt');
+      // v2: Remove legacy jiraIssues store if it exists
+      if (oldVersion >= 1 && oldVersion < 2) {
+        try {
+          if (db.objectStoreNames.contains('jiraIssues' as any)) {
+            db.deleteObjectStore('jiraIssues' as any);
+          }
+        } catch {
+          // ignore
+        }
+      }
     },
   });
 
@@ -105,13 +103,13 @@ export async function getDB(): Promise<IDBPDatabase<DocuReleaseDB>> {
 // Credentials
 export async function getCredentials(): Promise<Credentials | null> {
   const db = await getDB();
-  const all = await db.getAll('credentials');
-  return all[0] || null;
+  const result = await db.get('credentials', 'primary');
+  return result || null;
 }
 
 export async function saveCredentials(creds: Credentials): Promise<void> {
   const db = await getDB();
-  await db.put('credentials', creds);
+  await db.put('credentials', creds, 'primary');
 }
 
 export async function clearCredentials(): Promise<void> {
@@ -175,21 +173,6 @@ export async function updatePullRequest(id: string, updates: Partial<PullRequest
   if (pr) {
     await db.put('pullRequests', { ...pr, ...updates });
   }
-}
-
-// Jira Issues
-export async function getAllJiraIssues(): Promise<JiraIssue[]> {
-  const db = await getDB();
-  return db.getAll('jiraIssues');
-}
-
-export async function saveJiraIssues(issues: JiraIssue[]): Promise<void> {
-  const db = await getDB();
-  const tx = db.transaction('jiraIssues', 'readwrite');
-  for (const issue of issues) {
-    await tx.store.put(issue);
-  }
-  await tx.done;
 }
 
 // Changelogs

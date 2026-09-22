@@ -1,13 +1,12 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import {
-  Organization, Repository, PullRequest, JiraIssue,
+  Organization, Repository, PullRequest,
   ChangelogEntry, DocEntry, WebhookConfig, GenerationJob, Page
 } from '../types';
 import * as db from '../db';
 import { useAuth } from './AuthContext';
 import { GeminiService } from '../services/gemini';
 import { GitHubService } from '../services/github';
-import { JiraService } from '../services/jira';
 import { SlackService } from '../services/slack';
 
 interface AppState {
@@ -15,7 +14,6 @@ interface AppState {
   organization: Organization | null;
   repositories: Repository[];
   pullRequests: PullRequest[];
-  jiraIssues: JiraIssue[];
   changelogs: ChangelogEntry[];
   docs: DocEntry[];
   webhooks: WebhookConfig[];
@@ -30,7 +28,6 @@ interface AppContextType extends AppState {
   loadData: () => Promise<void>;
   syncRepositories: () => Promise<void>;
   syncPullRequests: (repoFullName: string) => Promise<void>;
-  syncJiraIssues: (keys: string[]) => Promise<void>;
   generateDocs: (prId: string) => Promise<void>;
   updateChangelog: (id: string, updates: Partial<ChangelogEntry>) => Promise<void>;
   updateDoc: (id: string, updates: Partial<DocEntry>) => Promise<void>;
@@ -54,7 +51,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     organization: null,
     repositories: [],
     pullRequests: [],
-    jiraIssues: [],
     changelogs: [],
     docs: [],
     webhooks: [],
@@ -71,11 +67,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const loadData = useCallback(async () => {
     try {
-      const [org, repos, prs, issues, cls, docs, whs, jobs] = await Promise.all([
+      const [org, repos, prs, cls, docs, whs, jobs] = await Promise.all([
         db.getOrganization(),
         db.getAllRepositories(),
         db.getAllPullRequests(),
-        db.getAllJiraIssues(),
         db.getAllChangelogs(),
         db.getAllDocs(),
         db.getAllWebhooks(),
@@ -87,7 +82,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
         organization: org,
         repositories: repos,
         pullRequests: prs.sort((a, b) => new Date(b.mergedAt || b.createdAt).getTime() - new Date(a.mergedAt || a.createdAt).getTime()),
-        jiraIssues: issues,
         changelogs: cls.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
         docs: docs.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()),
         webhooks: whs,
@@ -133,14 +127,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     showNotification('success', `Synced ${prs.length} merged PRs from ${repoFullName}`);
   }, [credentials, loadData, showNotification]);
 
-  const syncJiraIssues = useCallback(async (keys: string[]) => {
-    if (!credentials?.jiraApiToken) throw new Error('Jira not configured');
-    const jira = new JiraService(credentials.jiraDomain, credentials.jiraEmail, credentials.jiraApiToken);
-    const issues = await jira.getIssuesByKeys(keys);
-    await db.saveJiraIssues(issues);
-    setState(prev => ({ ...prev, jiraIssues: [...prev.jiraIssues.filter(i => !keys.includes(i.key)), ...issues] }));
-  }, [credentials]);
-
   const generateDocs = useCallback(async (prId: string) => {
     if (!credentials) throw new Error('Not authenticated');
 
@@ -169,21 +155,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }));
 
     try {
-      // Update status
-      await db.updateGenerationJob(jobId, { status: 'processing', progress: 'Fetching Jira context...' });
-
-      // Fetch Jira context if available
-      let jiraIssue: JiraIssue | undefined;
-      if (pr.jiraKeys.length > 0 && credentials.jiraApiToken) {
-        try {
-          const jira = new JiraService(credentials.jiraDomain, credentials.jiraEmail, credentials.jiraApiToken);
-          const issues = await jira.getIssuesByKeys(pr.jiraKeys);
-          jiraIssue = issues[0];
-          if (jiraIssue) await db.saveJiraIssues(issues);
-        } catch {
-          // Continue without Jira context
-        }
-      }
+      await db.updateGenerationJob(jobId, { status: 'processing', progress: 'Analyzing code changes...' });
 
       await db.updateGenerationJob(jobId, { progress: 'Generating with Gemini AI...' });
 
@@ -191,7 +163,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const gemini = new GeminiService(credentials);
       const { result, tokensUsed } = await gemini.generateFromPR(
         pr,
-        jiraIssue ? { key: jiraIssue.key, summary: jiraIssue.summary, description: jiraIssue.description } : undefined,
+        undefined,
         state.organization?.brandVoice
       );
 
@@ -356,7 +328,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       loadData,
       syncRepositories,
       syncPullRequests,
-      syncJiraIssues,
       generateDocs,
       updateChangelog,
       updateDoc,

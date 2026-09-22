@@ -1,9 +1,6 @@
 export interface Credentials {
   geminiApiKey: string;
   githubToken: string;
-  jiraDomain: string;
-  jiraEmail: string;
-  jiraApiToken: string;
   geminiModel: 'gemini-2.5-pro' | 'gemini-2.5-flash' | 'gemini-3.8-flash';
 }
 
@@ -38,24 +35,11 @@ export interface PullRequest {
   mergedAt: string | null;
   createdAt: string;
   labels: string[];
-  jiraKeys: string[];
   diff: string;
   filesChanged: number;
   additions: number;
   deletions: number;
   processed: boolean;
-}
-
-export interface JiraIssue {
-  id: string;
-  key: string;
-  summary: string;
-  description: string;
-  status: string;
-  assignee: string;
-  priority: string;
-  issueType: string;
-  url: string;
 }
 
 export interface ChangelogEntry {

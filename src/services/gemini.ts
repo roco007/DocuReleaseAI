@@ -9,7 +9,7 @@ export interface GeminiResponse {
     };
     finishReason: string;
   }>;
-  usageMetadata: {
+  usageMetadata?: {
     promptTokenCount: number;
     candidatesTokenCount: number;
     totalTokenCount: number;
@@ -60,12 +60,12 @@ export class GeminiService {
   }
 
   async generateFromPR(
-    pr: { title: string; body: string; diff: string; labels: string[]; branch: string; number: number; additions: number; deletions: number; filesChanged: number },
-    jiraContext?: { key: string; summary: string; description: string },
+    pr: { title: string; body: string; diff: string; labels: string[]; branch: string; number: number; additions: number; deletions: number; filesChanged: number; author: string; repositoryFullName: string },
+    _unused?: unknown,
     brandVoice?: string
   ): Promise<{ result: GenerationResult; tokensUsed: number }> {
     const systemPrompt = this.buildSystemPrompt(brandVoice);
-    const userPrompt = this.buildUserPrompt(pr, jiraContext);
+    const userPrompt = this.buildUserPrompt(pr);
 
     const response = await fetch(
       `${GEMINI_BASE_URL}/models/${this.model}:generateContent?key=${this.apiKey}`,
@@ -108,7 +108,7 @@ export class GeminiService {
   private buildSystemPrompt(brandVoice?: string): string {
     return `You are DocuRelease AI, an expert technical writer that generates documentation from code changes.
 
-Your task: Analyze a GitHub Pull Request (and optionally a linked Jira issue) and produce TWO outputs in a single JSON response:
+Your task: Analyze a GitHub Pull Request and produce TWO outputs in a single JSON response:
 
 1. **changelog**: A customer/user-facing changelog entry
 2. **docs**: Internal developer documentation
@@ -147,11 +147,12 @@ ${brandVoice ? `\n## Brand Voice:\n${brandVoice}\n` : ''}`;
   }
 
   private buildUserPrompt(
-    pr: { title: string; body: string; diff: string; labels: string[]; number: number; additions: number; deletions: number; filesChanged: number },
-    jiraContext?: { key: string; summary: string; description: string }
+    pr: { title: string; body: string; diff: string; labels: string[]; number: number; additions: number; deletions: number; filesChanged: number; author: string; repositoryFullName: string }
   ): string {
-    let prompt = `## Pull Request #${pr.number}
+    return `## Pull Request #${pr.number}
 
+**Repository:** ${pr.repositoryFullName}
+**Author:** ${pr.author}
 **Title:** ${pr.title}
 **Labels:** ${pr.labels.join(', ')}
 **Files Changed:** ${pr.filesChanged}
@@ -164,19 +165,7 @@ ${pr.body || 'No description provided.'}
 \`\`\`diff
 ${pr.diff}
 \`\`\`
-`;
 
-    if (jiraContext) {
-      prompt += `
-## Linked Jira Issue: ${jiraContext.key}
-
-**Summary:** ${jiraContext.summary}
-**Description:**
-${jiraContext.description || 'No description provided.'}
-`;
-    }
-
-    prompt += '\nGenerate the changelog and documentation now. Return ONLY valid JSON.';
-    return prompt;
+Generate the changelog and documentation now. Return ONLY valid JSON.`;
   }
 }
